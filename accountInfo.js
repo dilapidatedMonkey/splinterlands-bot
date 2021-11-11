@@ -47,20 +47,25 @@ async function getStats(page) {
             const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
             const power_selector = '#power_progress > div.progress__info > span.number_text';
             const rank_selector = '#current_league_text';
+            const credit_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(1) > div.credits-container > div';
+            const sps_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(3) > div.sps-container > div';
             const power = await page.$eval(power_selector, (element) => element.textContent);
             const rank = await page.$eval(rank_selector, (element) => element.textContent);
-            const amount = await page.$eval(dec_selector, (element) => element.textContent);
+            const dec = await page.$eval(dec_selector, (element) => element.textContent);
+            const sps = await page.$eval(sps_selector, (element) => element.textContent);
+            const credit = await page.$eval(credit_selector, (element) => element.textContent);
             const energy = await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100);
             const quest = await page.$eval("#quest_title1", (element) => element.textContent);
             let questCompletion = 0
+            //fix the line below,,,,
             const questOne = await page.$$eval("#quest_slot empty", (element) => element.forEach( _ => {
                 questCompletion += 1;
                 })
             )
-            if(amount){
+            if(dec){
                     console.log(chalk.bold.red('-------------------------------------'));
                     console.log(chalk.bold.whiteBright.cyan(`ACCOUNT: ${process.env.ACCOUNT}`));
-                    console.log('DEC AMOUNT:', amount);
+                    console.log(`Credit: ${credit} || Dec: ${dec} || SPS: ${sps}`);
                     console.log(chalk.bold.whiteBright.green('ENERGY CAPTURE RATE: ' + energy.split('.')[0] + "%"));
                     console.log(chalk.bold.whiteBright.green(`RANK: ${rank}`));
                     console.log(chalk.bold.whiteBright.green(`POWER: ${power}`));
