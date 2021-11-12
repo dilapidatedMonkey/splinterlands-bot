@@ -1,6 +1,7 @@
 //my own little bit of code to login and retrieve some useful information form the accoutnx
 require('dotenv').config();
 const puppeteer = require('puppeteer');
+const quests = require('./quests');
 const { clickOnElement, getElementTextByXpath } = require('./helper');
 const chalk = require('chalk');
 const splinterlandsPage = require('./splinterlandsPage'); 
@@ -55,21 +56,17 @@ async function getStats(page) {
             const sps = await page.$eval(sps_selector, (element) => element.textContent);
             const credit = await page.$eval(credit_selector, (element) => element.textContent);
             const energy = await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100);
-            const quest = await page.$eval("#quest_title1", (element) => element.textContent);
-            let questCompletion = 0
-            //fix the line below,,,,
-            const questOne = await page.$$eval("#quest_slot empty", (element) => element.forEach( _ => {
-                questCompletion += 1;
-                })
-            )
+            // console.log('before')
+            const questDetails = await quests.getPlayerQuest(process.env.ACCOUNT);
+            console.log(questDetails)
             if(dec){
                     console.log(chalk.bold.red('-------------------------------------'));
-                    console.log(chalk.bold.whiteBright.cyan(`ACCOUNT: ${process.env.ACCOUNT}`));
+                    console.log(`ACCOUNT: ${process.env.ACCOUNT}`);
                     console.log(`Credit: ${credit} || Dec: ${dec} || SPS: ${sps}`);
-                    console.log(chalk.bold.whiteBright.green('ENERGY CAPTURE RATE: ' + energy.split('.')[0] + "%"));
+                    console.log(chalk.bold.whiteBright.bgMagenta('ENERGY CAPTURE RATE: ' + energy.split('.')[0] + "%"));
                     console.log(chalk.bold.whiteBright.green(`RANK: ${rank}`));
                     console.log(chalk.bold.whiteBright.green(`POWER: ${power}`));
-                    console.log(chalk.bold.whiteBright.cyan(`QUEST: ${quest}, ${questCompletion}/5`))
+                    console.log(chalk.bold.whiteBright.bgBlue(`QUEST: ${questDetails.completed}/${questDetails.total}`))
                     console.log(chalk.bold.red('-------------------------------------'));
                 } else {
                     console.log(chalk.bold.whiteBright.green('accountInfo(line74): could not find page contents'));
