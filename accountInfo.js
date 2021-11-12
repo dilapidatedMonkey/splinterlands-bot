@@ -58,7 +58,7 @@ async function getStats(page) {
             const energy = await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100);
             // console.log('before')
             const questDetails = await quests.getPlayerQuest(process.env.ACCOUNT);
-            console.log(questDetails)
+            // console.log(questDetails)
             if(dec){
                     console.log(chalk.bold.red('-------------------------------------'));
                     console.log(`ACCOUNT: ${process.env.ACCOUNT}`);
@@ -66,7 +66,7 @@ async function getStats(page) {
                     console.log(chalk.bold.whiteBright.bgMagenta('ENERGY CAPTURE RATE: ' + energy.split('.')[0] + "%"));
                     console.log(chalk.bold.whiteBright.green(`RANK: ${rank}`));
                     console.log(chalk.bold.whiteBright.green(`POWER: ${power}`));
-                    console.log(chalk.bold.whiteBright.bgBlue(`QUEST: ${questDetails.completed}/${questDetails.total}`))
+                    console.log(chalk.bold.whiteBright.bgBlue(`QUEST ${questDetails.splinter}: ${questDetails.completed}/${questDetails.total}`))
                     console.log(chalk.bold.red('-------------------------------------'));
                 } else {
                     console.log(chalk.bold.whiteBright.green('accountInfo(line74): could not find page contents'));
