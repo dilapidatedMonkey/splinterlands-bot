@@ -1,3 +1,4 @@
 node_modules/
 data/newHistory.json
 .env
+.googleSheetsAPI.json
