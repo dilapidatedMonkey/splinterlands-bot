@@ -50,23 +50,23 @@ async function getStats(page) {
             const rank_selector = '#current_league_text';
             const credit_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(1) > div.credits-container > div';
             const sps_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(3) > div.sps-container > div';
+            const rating_selector = '#about_player__status > div:nth-child(1) > div:nth-child(2) > div > div > div.progress-meter__progress > div:nth-child(1) > div.progress__info > span.number_text';
+            const rating = await page.$eval(rating_selector, (element) => element.textContent);
             const power = await page.$eval(power_selector, (element) => element.textContent);
             const rank = await page.$eval(rank_selector, (element) => element.textContent);
             const dec = await page.$eval(dec_selector, (element) => element.textContent);
             const sps = await page.$eval(sps_selector, (element) => element.textContent);
             const credit = await page.$eval(credit_selector, (element) => element.textContent);
             const energy = await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100);
-            // console.log('before')
             const questDetails = await quests.getPlayerQuest(process.env.ACCOUNT);
-            // console.log(questDetails)
             if(dec){
                     console.log(chalk.bold.red('-------------------------------------'));
-                    console.log(`ACCOUNT: ${process.env.ACCOUNT}`);
+                    console.log(chalk.bold.whiteBright.cyan(`ACCOUNT: ${process.env.ACCOUNT}`));
                     console.log(`Credit: ${credit} || Dec: ${dec} || SPS: ${sps}`);
-                    console.log(chalk.bold.whiteBright.bgMagenta('ENERGY CAPTURE RATE: ' + energy.split('.')[0] + "%"));
-                    console.log(chalk.bold.whiteBright.green(`RANK: ${rank}`));
+                    console.log(chalk.bold.whiteBright.green('ENERGY CAPTURE RATE: ' + energy.split('.')[0] + "%"));
+                    console.log(chalk.bold.whiteBright.green(`RANK: ${rank}, RATING: ${rating}`));
                     console.log(chalk.bold.whiteBright.green(`POWER: ${power}`));
-                    console.log(chalk.bold.whiteBright.bgBlue(`QUEST ${questDetails.splinter}: ${questDetails.completed}/${questDetails.total}`))
+                    console.log(chalk.bold.whiteBright.bgBlue(`QUEST ${questDetails.splinter}: ${questDetails.completed}/${questDetails.total}`));
                     console.log(chalk.bold.red('-------------------------------------'));
                 } else {
                     console.log(chalk.bold.whiteBright.green('accountInfo(line74): could not find page contents'));
