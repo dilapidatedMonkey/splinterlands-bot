@@ -1,7 +1,7 @@
 //'use strict';
 require('dotenv').config();
 const puppeteer = require('puppeteer');
-
+const googleSheet = require('./googlesheet');
 const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const card = require('./cards');
@@ -83,6 +83,10 @@ async function startBotPlayMatch(page, browser) {
     await closePopups(page);
     await closePopups(page);
 
+    //check if I need to update to google spreadsheet
+    const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
+    const dec = await page.$eval(dec_selector, (element) => element.textContent);
+    googleSheet.checkGoogleSheet(dec);
 
     const ecr = await checkEcr(page);
     if (ecr === undefined) throw new Error('Fail to get ECR.')
