@@ -1,6 +1,10 @@
 const {google} = require('googleapis');
-const { type } = require('os');
 const keys = require('./data/gsapikeys.json');
+const { type } = require('os');
+require('dotenv').config()
+
+const sheet_spot = process.env.SHEET_SPOT;
+const sheet_date = letterShift(sheet_spot, 1);
 
 const client = new google.auth.JWT(
     keys.client_email, 
@@ -19,18 +23,22 @@ async function checkGoogleSheet(dec){
             gsrun(client, dec);
         }
     });
+    console.log('DONE')
 }
 
-//get this code to run at certain intervals using google sheets and update
-//the google sheets accourding to the time frame
-function randomNum(){
-    return Math.floor(Math.random() * 100);
-}
+function letterShift(str, shiftBy){
+    let newString = ''
+    for (var i = 0; i < str.length; i++) {
+        newString += String.fromCharCode(str.charCodeAt(i) + shiftBy);
+    }
+    return newString;
+  }
+  
 
 function todaysDate(){
     let today = new Date();
     var dd = String(today.getDate()).padStart(2, '0');
-    var mm = String(today.getMonth() + 1).padStart(2, '0'); //January is 0!
+    var mm = String(today.getMonth() + 1).padStart(2, '0');
     var yyyy = today.getFullYear();
     const todaysDate = `${dd}-${mm}-${yyyy}`;
     console.log(todaysDate);
@@ -38,25 +46,21 @@ function todaysDate(){
 }
 
 async function gsInfoUpdate(cl, target, API, newDate, darkcry){
-    randomVal = randomNum();
     const updateDec = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        //remember to change below to something dynamic and add it to the process.env
-        range: `B${target}`,
+        range: `${sheet_spot}${target}`,
         valueInputOption: 'USER_ENTERED',
         resource: {values: [[darkcry]]}
     }
     const updateCell = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        //remember to change below to something dynamic and add it to the process.env
-        range: `B1`,
+        range: `${sheet_spot}1`,
         valueInputOption: 'USER_ENTERED',
         resource: {values: [[target + 1]]}
     }
     const updateDate = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        //remember to change below to something dynamic and add it to the process.env
-        range: `C1`,
+        range: `${sheet_date}1`,
         valueInputOption: 'USER_ENTERED',
         resource: {values: [[newDate]]}
     }
@@ -67,7 +71,7 @@ async function gsInfoUpdate(cl, target, API, newDate, darkcry){
         API.spreadsheets.values.update(updateDate);
     }
     catch {
-        console.log('something went wrong when update googe sheets(50)')
+        console.log('something went wrong when updating google sheets')
     }
 
 }
@@ -76,24 +80,25 @@ async function gsrun(cl, darkcrystals) {
     const gsAPI = google.sheets({ version: 'v4', auth: cl });
     const dateInfo = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        range: 'C1'
+        range: `${sheet_date}1`
     }
     let currentdate = await todaysDate();
     let exceldate = await gsAPI.spreadsheets.values.get(dateInfo);
 
-    console.log(currentdate, exceldate.data.values[0][0], type(currentdate), type(exceldate))
+    console.log(currentdate)
     if(currentdate != exceldate.data.values[0][0]){
-        console.log('not the same, lemme update this bro');
+        console.log('Updating the spreadSheet');
         const targetInfo = {
             spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-            range: 'B1'
+            range: `${sheet_spot}1`
         }
         let getTarget = await gsAPI.spreadsheets.values.get(targetInfo);
-        console.log('heres my target', getTarget.data.values[0][0])
         gsInfoUpdate(cl, parseInt(getTarget.data.values[0][0], 10), gsAPI, currentdate, darkcrystals);
     } else {
-        console.log('same date still, you may continue');
+        console.log('No Sheet Update Needed');
     }
 }
+
+checkGoogleSheet(8008);
 
 exports.checkGoogleSheet = checkGoogleSheet;
