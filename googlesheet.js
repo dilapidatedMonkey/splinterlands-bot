@@ -4,7 +4,7 @@ const { type } = require('os');
 require('dotenv').config()
 
 const sheet_spot = process.env.SHEET_SPOT;
-const sheet_date = letterShift(sheet_spot, 1);
+const sheet_date = shiftLastLetter(sheet_spot, 1);
 
 const client = new google.auth.JWT(
     keys.client_email, 
@@ -26,13 +26,18 @@ async function checkGoogleSheet(dec){
     console.log('DONE')
 }
 
-function letterShift(str, shiftBy){
+function shiftLastLetter(str, shiftBy){
     let newString = ''
     for (var i = 0; i < str.length; i++) {
-        newString += String.fromCharCode(str.charCodeAt(i) + shiftBy);
+        if(i == str.length - 1){
+            newString += String.fromCharCode(str.charCodeAt(i) + shiftBy);
+        } else {
+            newString += String.fromCharCode(str.charCodeAt(i));
+        }
+        
     }
     return newString;
-  }
+}
   
 
 function todaysDate(){
