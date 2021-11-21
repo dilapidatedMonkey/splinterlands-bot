@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "splinterlandssheet",
+  "private_key_id": "1d9005366b7ac4c74c4707c765df533d61d5b74c",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDKdpOCUJfRlOEH\ni+KRpZQPAhCQ6SwSKzB4ZV6AHFx04Xr5BzZQgFVNsvu1j39INnhTsXn+rLw0HXBb\nTtpU9b81VYx81RiEumGiLsexuRvolpTknwDQtwBJai2Z05OU9z5FrI/YdJ70spcz\nQqWTup53rQa84QDSHiI/tXzj8xkjqMRVOMQ9uSuSb0La/emGWrhZliAc3+8U3oPU\n7NbtHwb6kOvdKF5sg9EjYAm+EQj0QCAcgkjDkySfKC/gWeLHOBXzDIpf9z0s87V8\n9nM+69L3wNa5IkHSqaI0pkUV7VIgRmedPesQ2ZB3loAueY6zuqz4lUhxHUCxr9MU\nji7Flg5JAgMBAAECggEADA2jYkGVSj5CZ9o7eLeKcRrKvO/Oxn2g/vfs+HRHylMO\nqML1yDTdrzihvNlARv6sKvJgzIlA0prykJMJE0AGnECdsqRWl3dHnvnJPHLEXzRQ\nxKwVJrfQWe6K7LKggYC3Kbt4XFb0DCYSM5RrCliUvNP1l9rO21N9Lz0JJIJ5W4qi\nRVPlOiwNFidn52r/540GjQPiKaeRuXTR1cHvBDEyfWzDCWvLGXK2r5h3MADA8T6o\nCqZGY37dQiso+7MPWcVdx2o6qWS6IIj/yw97uOn3Cv8TAOMpmUXWXSo8UddsOIag\nOdxIUxcBhl++uATVYQUeCCq+COL+lGwLCVAycpKNMQKBgQD2br/1CN4VtLNLIr5X\nSfv5ah94Jo8dlExJCd4TC9+OmySfiCPNXI8xG6SrmTpcewYdjSNDlJRbRcwjJ91f\niZ00jxHSTq1TLYHLEH7DKJE8AnD53NRsgXjAxjmrPKCGZW/PQSUyzzQXvOIUf3FX\n/HWBdvy2sVwcG05aAGNOPSMCOQKBgQDSUtJvIJAa1MUw1vyIrXGHf1No7fWXKWq8\nV6RYrN2xoQt4pn0GGe7Tb0TAn7hwBuvLzT+rueY0qpHu5FzZy9MoRIZ4nG4Kjs13\nXb5kg+qbOcWsEBp1azYBghGpUgV+h88fjsIKRhHsagPZHkS5dfXQoyGVA1fFAIC5\nZddZo2AskQKBgQDdZayhuWDFQX4fT8yP4ZE2iChTqtjDK1vJ9sqEdBNaLHoftZDs\nzG59ISe1X0l2krRw0j9PVOpggfmf0A3r6lfJQ4wwVK0VYHoOdPhd31F0B4F2ifZy\nsXNKRgzDkglqFTH5kr6Xwl47wV+gKMss0EzFjqAGhpuJSOMAqv6M6RJNyQKBgQCo\ncw75VAI2ixzX7gfaS9e2pwKd8qAVDmXfLO6C2wjAAHTYj7dokJKYIvDUudeVWeW2\nl8+b8Urv+YDh7WJ0SWv4P1HX/amgqRjktl8L0B+xbQbltQwL6O8bLBqLGxctbQY1\nhzff1Jj8WTh1x2lRhKl5DX6TA1djf/CZDHj64P/hEQKBgAjwTWT0g7PMSHx+l7Pw\nfoxlmYvXXfqLy4YmdNWacdOMOGlKZYnEnn6HF2WClLuPtaPOo33pi1v/RgLVwZ/q\nuoHjyxWYeqOUrFeEsxQhp6TEDieV3zZA5ytIa0V/CbQb3hWCY1jOrnUnZG1uQoHG\nDpLQ8VmuUx2LYplD9H36pXTh\n-----END PRIVATE KEY-----\n",
+  "client_email": "splinterlandsupdatesheet@splinterlandssheet.iam.gserviceaccount.com",
+  "client_id": "109665386038470818346",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/splinterlandsupdatesheet%40splinterlandssheet.iam.gserviceaccount.com"
+}
