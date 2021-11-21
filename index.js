@@ -83,13 +83,13 @@ async function startBotPlayMatch(page, browser) {
     await closePopups(page);
     await closePopups(page);
 
+    const ecr = await checkEcr(page);
+    if (ecr === undefined) throw new Error('Fail to get ECR.')
+
     //check if I need to update to google spreadsheet
     const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
     const dec = await page.$eval(dec_selector, (element) => element.textContent);
     googleSheet.checkGoogleSheet(dec);
-
-    const ecr = await checkEcr(page);
-    if (ecr === undefined) throw new Error('Fail to get ECR.')
 
     if (process.env.ECR_STOP_LIMIT && process.env.ECR_RECOVER_TO && ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
         if (ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
