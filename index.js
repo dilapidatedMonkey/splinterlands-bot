@@ -50,6 +50,17 @@ async function checkEcr(page) {
     }
 }
 
+async function checkIfNeedToUpdateSheet(page){
+    try {
+        //check if I need to update to google spreadsheet
+        const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
+        const dec = await page.$eval(dec_selector, (element) => element.textContent);
+        await googleSheet.checkGoogleSheet(dec);
+    } catch {
+        console.log('did not update spreadsheet');
+    }
+}
+
 async function startBotPlayMatch(page, browser) {
     
     console.log( new Date().toLocaleString(), 'opening browser...')
@@ -82,14 +93,10 @@ async function startBotPlayMatch(page, browser) {
     await page.waitForTimeout(8000);
     await closePopups(page);
     await closePopups(page);
+    await checkIfNeedToUpdateSheet(page);
 
     const ecr = await checkEcr(page);
     if (ecr === undefined) throw new Error('Fail to get ECR.')
-
-    //check if I need to update to google spreadsheet
-    const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
-    const dec = await page.$eval(dec_selector, (element) => element.textContent);
-    googleSheet.checkGoogleSheet(dec);
 
     if (process.env.ECR_STOP_LIMIT && process.env.ECR_RECOVER_TO && ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
         if (ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
