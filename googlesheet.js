@@ -104,6 +104,4 @@ async function gsrun(cl, darkcrystals) {
     }
 }
 
-checkGoogleSheet(8008);
-
 exports.checkGoogleSheet = checkGoogleSheet;
