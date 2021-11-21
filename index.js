@@ -55,7 +55,8 @@ async function checkIfNeedToUpdateSheet(page){
         //check if I need to update to google spreadsheet
         const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
         const dec = await page.$eval(dec_selector, (element) => element.textContent);
-        await googleSheet.checkGoogleSheet(dec);
+        const ecr = await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100);
+        await googleSheet.checkGoogleSheet(dec, ecr);
     } catch {
         console.log('did not update spreadsheet');
     }

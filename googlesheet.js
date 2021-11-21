@@ -13,14 +13,14 @@ const client = new google.auth.JWT(
     ["https://www.googleapis.com/auth/spreadsheets"]
 );
 
-async function checkGoogleSheet(dec){
+async function checkGoogleSheet(dec, ecr){
     client.authorize(function(err, tokens){
         if(err){
             console.log(err);
             return;
         } else {
             console.log("Connected to google sheet");
-            gsrun(client, dec);
+            gsrun(client, dec, ecr);
         }
     });
     console.log('DONE')
@@ -48,6 +48,20 @@ function todaysDate(){
     const todaysDate = `${dd}-${mm}-${yyyy}`;
     console.log(todaysDate);
     return todaysDate;
+}
+
+async function updateECR(cl, ecr){
+    const updateECR = {
+        spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
+        range: `${sheet_date}2`,
+        valueInputOption: 'USER_ENTERED',
+        resoure: {values: [[ecr]]}
+    }
+    try {
+        API.spreadsheets.values.update(updateECR);
+    } catch {
+        console.log('something went wrong while trying to update ecr to google sheet')
+    }
 }
 
 async function gsInfoUpdate(cl, target, API, newDate, darkcry){
@@ -81,7 +95,7 @@ async function gsInfoUpdate(cl, target, API, newDate, darkcry){
 
 }
 
-async function gsrun(cl, darkcrystals) {
+async function gsrun(cl, darkcrystals, ecr) {
     const gsAPI = google.sheets({ version: 'v4', auth: cl });
     const dateInfo = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
@@ -91,6 +105,11 @@ async function gsrun(cl, darkcrystals) {
     let exceldate = await gsAPI.spreadsheets.values.get(dateInfo);
 
     console.log(currentdate)
+    if(ecr){
+        updateECR(cl, ecr);
+    } else {
+        console.log('could not get ecr, did not update google sheets')
+    }
     if(currentdate != exceldate.data.values[0][0]){
         console.log('Updating the spreadSheet');
         const targetInfo = {
