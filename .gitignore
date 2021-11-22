@@ -1,2 +1,5 @@
 node_modules/
+/data/newHistory.json
+/data/gsapikeys.json
+.env
 package-lock.json

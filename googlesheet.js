@@ -3,9 +3,6 @@ const keys = require('./data/gsapikeys.json');
 const { type } = require('os');
 require('dotenv').config()
 
-const sheet_spot = process.env.SHEET_SPOT;
-const sheet_date = shiftLastLetter(sheet_spot, 1);
-
 const client = new google.auth.JWT(
     keys.client_email, 
     null, 
@@ -23,10 +20,9 @@ async function checkGoogleSheet(dec, ecr){
             gsrun(client, dec, ecr);
         }
     });
-    console.log('DONE')
 }
 
-function shiftLastLetter(str, shiftBy){
+async function shiftLastLetter(str, shiftBy){
     let newString = ''
     for (var i = 0; i < str.length; i++) {
         if(i == str.length - 1){
@@ -38,7 +34,6 @@ function shiftLastLetter(str, shiftBy){
     }
     return newString;
 }
-  
 
 function todaysDate(){
     let today = new Date();
@@ -46,56 +41,58 @@ function todaysDate(){
     var mm = String(today.getMonth() + 1).padStart(2, '0');
     var yyyy = today.getFullYear();
     const todaysDate = `${dd}-${mm}-${yyyy}`;
-    console.log(todaysDate);
     return todaysDate;
 }
 
-async function updateECR(cl, ecr){
-    const updateECR = {
+async function updateECR(cl, API, ecr, sheetDate){
+    const updateecrInfo = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        range: `${sheet_date}2`,
+        range: `${sheetDate}2`,
         valueInputOption: 'USER_ENTERED',
-        resoure: {values: [[ecr]]}
+        resource: {values: [[ecr]]}
     }
     try {
-        API.spreadsheets.values.update(updateECR);
+        await API.spreadsheets.values.update(updateecrInfo);
     } catch {
-        console.log('something went wrong while trying to update ecr to google sheet')
+        console.log(`ECR value: ${ecr}, coloum trying to add to: ${sheetDate}`);
+        console.log('something went wrong while trying to update ecr to google sheet');
     }
 }
 
-async function gsInfoUpdate(cl, target, API, newDate, darkcry){
+async function gsInfoUpdate(cl, target, API, newDate, darkcry, sheetSpot, sheetDate){
     const updateDec = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        range: `${sheet_spot}${target}`,
+        range: `${sheetSpot}${target}`,
         valueInputOption: 'USER_ENTERED',
         resource: {values: [[darkcry]]}
     }
     const updateCell = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        range: `${sheet_spot}1`,
+        range: `${sheetSpot}1`,
         valueInputOption: 'USER_ENTERED',
         resource: {values: [[target + 1]]}
     }
     const updateDate = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
-        range: `${sheet_date}1`,
+        range: `${sheetDate}1`,
         valueInputOption: 'USER_ENTERED',
         resource: {values: [[newDate]]}
     }
     try {
         //update dec mark and update number
-        API.spreadsheets.values.update(updateDec); 
-        API.spreadsheets.values.update(updateCell);
-        API.spreadsheets.values.update(updateDate);
+        await API.spreadsheets.values.update(updateDec); 
+        await API.spreadsheets.values.update(updateCell);
+        await API.spreadsheets.values.update(updateDate);
     }
     catch {
         console.log('something went wrong when updating google sheets')
     }
-
 }
 
 async function gsrun(cl, darkcrystals, ecr) {
+    const sheet_spot = await process.env.SHEET_SPOT;
+    const sheet_date = await shiftLastLetter(sheet_spot, 1);
+
     const gsAPI = google.sheets({ version: 'v4', auth: cl });
     const dateInfo = {
         spreadsheetId: '1tbwo9fEawcDGZ7CZ9t5SEKi_2QM-Akwo7AT7aXymFBQ',
@@ -105,8 +102,8 @@ async function gsrun(cl, darkcrystals, ecr) {
     let exceldate = await gsAPI.spreadsheets.values.get(dateInfo);
 
     console.log(currentdate)
-    if(ecr){
-        updateECR(cl, ecr);
+    if(ecr != ''){
+        await updateECR(cl, gsAPI, ecr, sheet_date);
     } else {
         console.log('could not get ecr, did not update google sheets')
     }
@@ -117,10 +114,12 @@ async function gsrun(cl, darkcrystals, ecr) {
             range: `${sheet_spot}1`
         }
         let getTarget = await gsAPI.spreadsheets.values.get(targetInfo);
-        gsInfoUpdate(cl, parseInt(getTarget.data.values[0][0], 10), gsAPI, currentdate, darkcrystals);
+        gsInfoUpdate(cl, parseInt(getTarget.data.values[0][0], 10), gsAPI, currentdate, darkcrystals, sheet_spot, sheet_date);
     } else {
         console.log('No Sheet Update Needed');
     }
 }
+
+// checkGoogleSheet(8008, '69%');
 
 exports.checkGoogleSheet = checkGoogleSheet;
