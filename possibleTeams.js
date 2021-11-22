@@ -87,17 +87,17 @@ const getBattlesWithRuleset = (ruleset, mana, summoners) => {
 }
 
 const battlesFilterByManacap = async (mana, ruleset, summoners) => {
-    const history = await getBattlesWithRuleset(ruleset, mana, summoners);
-    if (history) {
-        console.log('API battles returned ', history.length)
-        return history.filter(
-            battle =>
-                battle.mana_cap == mana &&
-                (ruleset ? battle.ruleset === ruleset : true)
-        )
-    }
+    // const history = await getBattlesWithRuleset(ruleset, mana, summoners);
+    // if (history) {
+    //     console.log('API battles returned ', history.length)
+    //     return history.filter(
+    //         battle =>
+    //             battle.mana_cap == mana &&
+    //             (ruleset ? battle.ruleset === ruleset : true)
+    //     )
+    // }
     const backupLength = historyBackup && historyBackup.length
-    console.log('API battles did not return ', history)
+    console.log('Changing gears, using backup right away')
     console.log('Using Backup ', backupLength)
     
     return historyBackup.filter(
