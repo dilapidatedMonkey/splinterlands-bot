@@ -13,14 +13,11 @@ const chalk = require('chalk');
 let isMultiAccountMode = false;
 let account = '';
 let password = '';
+let sheet_spot = '';
 let totalDec = 0;
 let winTotal = 0;
 let loseTotal = 0;
 let undefinedTotal = 0;
-//COMMENT: comment the following 2 vars if you want to return bot to original state
-process.env.ECR_STOP_LIMIT = 75;
-process.env.ECR_RECOVER_TO = 99;
-const ecrRecoveryRatePerHour = 1.04;
 
 // LOAD MY CARDS
 async function getCards() {
@@ -59,7 +56,7 @@ async function checkIfNeedToUpdateSheet(page){
         const dec_selector = '#bs-example-navbar-collapse-1 > ul.nav.navbar-nav.navbar-right > li:nth-child(2) > div.dec-container > div.balance';
         const dec = await page.$eval(dec_selector, (element) => element.textContent);
         const energy = await getElementTextByXpath(page, "//div[@class='dec-options'][1]/div[@class='value'][2]/div", 100);
-        await googleSheet.checkGoogleSheet(dec, energy);
+        await googleSheet.checkGoogleSheet(sheet_spot, dec, energy);
     } catch {
         console.log('did not update spreadsheet');
     }
@@ -332,8 +329,7 @@ async function startBotPlayMatch(page, browser) {
 
 // 30 MINUTES INTERVAL BETWEEN EACH MATCH (if not specified in the .env file)
 // uncomment the other sleepingTimeInMinutes to return to original bot behavior
-//const sleepingTimeInMinutes = process.env.MINUTES_BATTLES_INTERVAL || 30;
-const sleepingTimeInMinutes = 10;
+const sleepingTimeInMinutes = process.env.MINUTES_BATTLES_INTERVAL || 30;
 const sleepingTime = sleepingTimeInMinutes * 60000;
 const isHeadlessMode = process.env.HEADLESS === 'false' ? false : true; 
 
@@ -450,9 +446,10 @@ async function restart(browser) {
     await run();
 }
 
-function setupAccount(uname, pword, multiAcc) {
+function setupAccount(uname, pword, gsSpots, multiAcc) {
     account = uname;
     password = pword;
+    sheet_spot = gsSpots;
     isMultiAccountMode = multiAcc;
 }
 

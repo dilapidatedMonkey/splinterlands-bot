@@ -1,7 +1,6 @@
 const {google} = require('googleapis');
 const keys = require('./data/gsapikeys.json');
 const { type } = require('os');
-require('dotenv').config()
 
 const client = new google.auth.JWT(
     keys.client_email, 
@@ -10,14 +9,14 @@ const client = new google.auth.JWT(
     ["https://www.googleapis.com/auth/spreadsheets"]
 );
 
-async function checkGoogleSheet(dec, ecr){
+async function checkGoogleSheet(sheet_spot, dec, ecr){
     client.authorize(function(err, tokens){
         if(err){
             console.log(err);
             return;
         } else {
             console.log("Connected to google sheet");
-            gsrun(client, dec, ecr);
+            gsrun(client, sheet_spot, dec, ecr);
         }
     });
 }
@@ -89,8 +88,8 @@ async function gsInfoUpdate(cl, target, API, newDate, darkcry, sheetSpot, sheetD
     }
 }
 
-async function gsrun(cl, darkcrystals, ecr) {
-    const sheet_spot = await process.env.SHEET_SPOT;
+async function gsrun(cl, sheet_spot, darkcrystals, ecr) {
+    // const sheet_spot = await process.env.SHEET_SPOT;
     const sheet_date = await shiftLastLetter(sheet_spot, 1);
 
     const gsAPI = google.sheets({ version: 'v4', auth: cl });

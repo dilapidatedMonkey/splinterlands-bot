@@ -12,15 +12,17 @@ async function startMulti() {
     let missingValue = false;
     let accounts = process.env.ACCOUNT.split(',');
     let passwords = process.env.PASSWORD.split(',');
+    let gs_spots = process.env.SHEET_SPOT.splint(',');
     let count = 1;
 
     // trim account and password
     accounts = accounts.map(e => e.trim());
     passwords = passwords.map(e => e.trim());
+    gs_spots = gs_spots.map(e => e.trim());
     // split @ to prevent email use
     accounts = accounts.map(e => e.split('@')[0]);
     // accounts count
-    console.log(chalk.bold.redBright(`Accounts count: ${accounts.length}, passwords count: ${passwords.length}`))
+    console.log(chalk.bold.redBright(`Accounts count: ${accounts.length}, passwords count: ${passwords.length}, google sheet spots: ${gs_spots.length}`))
     if (accounts.length !== passwords.length) {
         throw new Error('The number of accounts and passwords do not match. Too many commas?')
     }
@@ -54,7 +56,7 @@ async function startMulti() {
     while(true) {
         console.log(chalk.bold.whiteBright.bgGreen(`Running bot iter-[${count}]`))
         for (let i = 0; i < accounts.length; i++) {
-            setupAccount(accounts[i], passwords[i], isMultiAccountMode);
+            setupAccount(accounts[i], passwords[i], gs_spots[i], isMultiAccountMode);
             await run();            
             console.log(`Finished running ${accounts[i]} account...\n`);
         }
