@@ -5,7 +5,7 @@ const googleSheet = require('./googlesheet');
 const splinterlandsPage = require('./splinterlandsPage');
 const user = require('./user');
 const card = require('./cards');
-const { clickOnElement, getElementText, getElementTextByXpath, teamActualSplinterToPlay, sleep } = require('./helper');
+const { clickOnElement, getElementText, getElementTextByXpath, teamActualSplinterToPlay, sleep, reload } = require('./helper');
 const quests = require('./quests');
 const ask = require('./possibleTeams');
 const chalk = require('chalk');
@@ -65,232 +65,367 @@ async function checkIfNeedToUpdateSheet(page){
 async function startBotPlayMatch(page, browser) {
     
     console.log( new Date().toLocaleString(), 'opening browser...')
+async function findSeekingEnemyModal(page, visibleTimeout=5000) {
+    let findOpponentDialogStatus = 0;
+    /*  findOpponentDialogStatus value list
+        0: modal #find_opponent_dialog has not appeared
+        1: modal #find_opponent_dialog has appeared and not closed
+        2: modal #find_opponent_dialog has appeared and closed
+    */
     
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3163.100 Safari/537.36');
-    await page.setViewport({
-        width: 1800,
-        height: 1500,
-        deviceScaleFactor: 1,
-    });
+    console.log('check #find_opponent_dialog modal visibility');
+    findOpponentDialogStatus = await page.waitForSelector('#find_opponent_dialog', { timeout: visibleTimeout, visible: true })
+        .then(()=> { console.log('find_opponent_dialog visible'); return 1; })
+        .catch((e)=> { console.log(e.message); return 0; });
 
-    await page.goto('https://splinterlands.io/');
-    await page.waitForTimeout(8000);
+    if (findOpponentDialogStatus === 1) {
+        console.log('waiting for an opponent...');
+        findOpponentDialogStatus = await page.waitForSelector('#find_opponent_dialog', { timeout: 50000, hidden: true })
+            .then(()=> { console.log('find_opponent_dialog has closed'); return 2; })
+            .catch((e)=> { console.log(e.message); return 1; });
+    }
 
-    let item = await page.waitForSelector('#log_in_button > button', {
-        visible: true,
-      })
-      .then(res => res)
-      .catch(()=> console.log('Already logged in'))
+    return findOpponentDialogStatus
+}
 
-    if (item != undefined)
-    {console.log('Login attempt...')
-        await splinterlandsPage.login(page, account, password).catch(e=>{
-            console.log(e);
-            throw new Error('Login Error');
+async function findCreateTeamButton(page, findOpponentDialogStatus=0, btnCreateTeamTimeout=5000) {
+    console.log(`waiting for create team button`);
+    return await page.waitForSelector('.btn--create-team', { timeout: btnCreateTeamTimeout })
+        .then(()=> { console.log('start the match'); return true; })
+        .catch(async ()=> {
+            if (findOpponentDialogStatus === 2) console.error('Is this account timed out from battle?');
+            console.error('btn--create-team not detected');
+            return false;
         });
-    }
+}
 
-    await page.goto('https://splinterlands.io/?p=battle_history');
-    await page.waitForTimeout(8000);
-    await closePopups(page);
-    await closePopups(page);
-    await checkIfNeedToUpdateSheet(page);
+async function launchBattle(page) {
+    const maxRetries = 3;
+    let retriesNum = 1;
+    let btnCreateTeamTimeout = 50000;
+    let findOpponentDialogStatus = await findSeekingEnemyModal(page);
+    let isStartBattleSuccess = await findCreateTeamButton(page, findOpponentDialogStatus);
 
-    const ecr = await checkEcr(page);
-    if (ecr === undefined) throw new Error('Fail to get ECR.')
-
-    if (process.env.ECR_STOP_LIMIT && process.env.ECR_RECOVER_TO && ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
-        if (ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
-            console.log(chalk.bold.red(`ECR lower than limit ${process.env.ECR_STOP_LIMIT}%. reduce the limit in the env file config or wait until ECR will be at ${process.env.ECR_RECOVER_TO || '100'}%`));
-        } else if (ecr < parseFloat(process.env.ECR_RECOVER_TO)) {
-            console.log(chalk.bold.red(`ECR Not yet Recovered to ${process.env.ECR_RECOVER_TO}`));
-        }
+    while (!isStartBattleSuccess && retriesNum <= maxRetries) {
+        console.log(`Launch battle iter-[${retriesNum}]`)
+        if (findOpponentDialogStatus === 0) {
+            console.log('waiting for battle button')
+            isStartBattleSuccess = await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
+                .then(button => { button.click(); console.log('Battle button clicked'); return true })
+                .catch(()=> { console.error('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'); return false; });
+            if (!isStartBattleSuccess) { await reload(page); await sleep(5000); retriesNum++; continue }
         
-        // calculating time needed for recovery
-        ecrNeededToRecover = parseFloat(process.env.ECR_RECOVER_TO) - parseFloat(ecr);
-        recoveryTimeInHours = Math.ceil(ecrNeededToRecover / ecrRecoveryRatePerHour);
-        
-        console.log(chalk.bold.white(`Time needed to recover ECR, approximately ${recoveryTimeInHours * 60} minutes.`));
-        await closeBrowser(browser);
-        console.log(chalk.bold.white(`Initiating sleep mode. The bot will awaken at ${new Date(Date.now() + recoveryTimeInHours * 3600 * 1000).toLocaleString()}`));
-        await sleep(recoveryTimeInHours * 3600 * 1000);
-
-        throw new Error(`Restart needed.`);
-    }
-    
-    console.log('getting user quest info from splinterlands API...')
-    const quest = await getQuest();
-    if(!quest) {
-        console.log('Error for quest details. Splinterlands API didnt work or you used incorrect username, remove @ and dont use email')
-    }
-
-    if(process.env.SKIP_QUEST && quest?.splinter && process.env.SKIP_QUEST.split(',').includes(quest?.splinter) && quest?.total !== quest?.completed) {
-        try {
-            await page.click('#quest_new_btn')
-                .then(async a=>{
-                    await page.reload();
-                    console.log('New quest requested')})
-                .catch(e=>console.log('Cannot click on new quest'))
-
-        } catch(e) {
-            console.log('Error while skipping new quest')
+            findOpponentDialogStatus = await findSeekingEnemyModal(page);
         }
-    }
 
-    console.log('getting user cards collection from splinterlands API...')
-    const myCards = await getCards()
-        .then((x)=>{console.log('cards retrieved'); return x})
-        .catch(()=>console.log('cards collection api didnt respond. Did you use username? avoid email!')); 
-
-    if(myCards) {
-        console.log(account, ' deck size: '+myCards.length)
-    } else {
-        console.log(account, ' playing only basic cards')
-    }
-
-    //check if season reward is available
-    if (process.env.CLAIM_SEASON_REWARD === 'true') {
-        try {
-            console.log('Season reward check: ');
-            await page.waitForSelector('#claim-btn', { visible:true, timeout: 3000 })
-            .then(async (button) => {
-                button.click();
-                console.log(`claiming the season reward. you can check them here https://peakmonsters.com/@${account}/explorer`);
-                await page.waitForTimeout(20000);
-                await page.reload();
-
-            })
-            .catch(()=>console.log(`no season reward to be claimed, but you can still check your data here https://peakmonsters.com/@${account}/explorer`));
-            await page.waitForTimeout(3000);
-            await page.reload();
+        if (findOpponentDialogStatus === 1 || findOpponentDialogStatus === 2) {
+            if (findOpponentDialogStatus === 2) {
+                console.log('opponent found?');
+                btnCreateTeamTimeout = 5000;
+            }
+            isStartBattleSuccess = await findCreateTeamButton(page, findOpponentDialogStatus, btnCreateTeamTimeout);
         }
-        catch (e) {
-            console.info('no season reward to be claimed')
-        }
-    }
 
-    //if quest done claim reward. default to true. to deactivate daily quest rewards claim, set CLAIM_DAILY_QUEST_REWARD false in the env file
-    console.log('claim daily quest setting:', process.env.CLAIM_DAILY_QUEST_REWARD, 'Quest details: ', quest);
-    const isClaimDailyQuestMode = process.env.CLAIM_DAILY_QUEST_REWARD === 'false' ? false : true; 
-    if (isClaimDailyQuestMode === true) {
-        try {
-            await page.waitForSelector('#quest_claim_btn', { timeout: 5000 })
-                .then(button => button.click());
-        } catch (e) {
-            console.info('no quest reward to be claimed waiting for the battle...')
-        }
-    }
-
-
-
-
-    await page.waitForTimeout(5000);
-
-    // LAUNCH the battle
-    try {
-        console.log('waiting for battle button...')
-        await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
-            .then(button => {console.log('Battle button clicked'); button.click()})
-            .catch(e=>console.error('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'));
-        await page.waitForTimeout(5000);
-
-        console.log('waiting for an opponent...')
-        await page.waitForSelector('.btn--create-team', { timeout: 50000 })
-            .then(()=>console.log('start the match'))
-            .catch(async (e)=> {
-            console.error('[Error while waiting for battle]');
+        if (!isStartBattleSuccess) {
             console.error('Refreshing the page and retrying to retrieve a battle');
-            await page.waitForTimeout(5000);
-            await page.reload();
-            await page.waitForTimeout(5000);
-            await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
-            .then(button => {console.log('Battle button clicked'); button.click()})
-            .catch(e=>console.error('[ERROR] waiting for Battle button. is Splinterlands in maintenance?'));
-            await page.waitForSelector('.btn--create-team', { timeout: 50000 })
-                .then(()=>console.log('start the match'))
-                .catch(async ()=>{
-                    console.log('second attempt failed reloading from homepage...');
-                    await page.goto('https://splinterlands.io/');
-                    await page.waitForTimeout(5000);
-                    await page.waitForXPath("//button[contains(., 'BATTLE')]", { timeout: 20000 })
-                        .then(button => button.click())
-                        .catch(e=>console.error('[ERROR] waiting for Battle button second time'));
-                    await page.waitForTimeout(5000);
-                    await page.waitForSelector('.btn--create-team', { timeout: 50000 })
-                        .then(()=>console.log('start the match'))
-                        .catch((e)=>{
-                            console.log('third attempt failed');
-                            throw new Error(e);})
-                        })
+            await reload(page);
+            await sleep(5000);
+        }
+
+        retriesNum++;
+    }
+
+    return isStartBattleSuccess
+}
+
+async function clickSummonerCard(page, teamToPlay) {
+    let clicked = true;
+
+    await page.waitForXPath(`//div[@card_detail_id="${teamToPlay.summoner}"]`, { timeout: 10000 })
+        .then(card => { card.click(); console.log(chalk.bold.greenBright(teamToPlay.summoner, 'clicked')); })
+        .catch(()=>{
+            clicked = false;
+            console.log(chalk.bold.redBright('Summoner not clicked.'))
+        });
+
+    return clicked
+}
+
+async function clickFilterElement(page, teamToPlay, matchDetails) {
+    let clicked = true;    
+    const playTeamColor = teamActualSplinterToPlay(teamToPlay.cards.slice(0, 6)) || matchDetails.splinters[0]
+
+    console.log('Dragon play TEAMCOLOR', playTeamColor)
+    await page.waitForXPath(`//div[@data-original-title="${playTeamColor}"]`, { timeout: 8000 })
+        .then(selector => { selector.click(); console.log(chalk.bold.greenBright('filter element clicked')) })
+        .catch(()=> {
+            clicked = false;
+            console.log(chalk.bold.redBright('filter element not clicked'))
         })
-    } catch(e) {
-        console.error('[Battle cannot start]:', e)
-        throw new Error('The Battle cannot start');
 
-    }
-    await page.waitForTimeout(10000);
-    let [mana, rules, splinters] = await Promise.all([
-        splinterlandsPage.checkMatchMana(page).then((mana) => mana).catch(() => 'no mana'),
-        splinterlandsPage.checkMatchRules(page).then((rulesArray) => rulesArray).catch(() => 'no rules'),
-        splinterlandsPage.checkMatchActiveSplinters(page).then((splinters) => splinters).catch(() => 'no splinters')
-    ]);
+    return clicked
+}
 
-    const matchDetails = {
-        mana: mana,
-        rules: rules,
-        splinters: splinters,
-        myCards: myCards
-    }
-    await page.waitForTimeout(2000);
-    const possibleTeams = await ask.possibleTeams(matchDetails, account).catch(e=>console.log('Error from possible team API call: ',e));
+async function clickMembersCard(page, teamToPlay) {
+    let clicked = true;
 
-    if (possibleTeams && possibleTeams.length) {
-        console.log('Possible Teams based on your cards: ', possibleTeams.length);
-    } else {
-        console.log('Error:', matchDetails, possibleTeams)
-        throw new Error('NO TEAMS available to be played');
+    for (i = 1; i <= 6; i++) {
+        console.log('play: ', teamToPlay.cards[i].toString());
+        if (teamToPlay.cards[i]) {
+            await page.waitForXPath(`//div[@card_detail_id="${teamToPlay.cards[i].toString()}"]`, { timeout: 10000 })
+                .then(card => { card.click();console.log(chalk.bold.greenBright(teamToPlay.cards[i], 'clicked')) })
+                .catch(()=> {
+                    clicked = false;
+                    console.log(chalk.bold.redBright(teamToPlay.cards[i], 'not clicked'));
+                });
+            if (!clicked) break
+        } else {
+            console.log('nocard ', i);
+        }
+        await page.waitForTimeout(1000);
     }
-    
-    //TEAM SELECTION
-    const teamToPlay = await ask.teamSelection(possibleTeams, matchDetails, quest, page.favouriteDeck);
 
-    if (teamToPlay) {
-        page.click('.btn--create-team')[0];
-    } else {
-        throw new Error('Team Selection error');
-    }
+    return clicked
+}
+
+async function clickCreateTeamButton(page) {
+    let clicked = true;
+
+    await reload(page);
     await page.waitForTimeout(5000);
-    try {
-        await page.waitForXPath(`//div[@card_detail_id="${teamToPlay.summoner}"]`, { timeout: 10000 })
-            .then(summonerButton => summonerButton.click())
-            .catch(async ()=>{
-                console.log(teamToPlay.summoner,'divId not found, reload and try again')
-                page.reload();
-                await page.waitForTimeout(2000);
-                page.waitForXPath(`//div[@card_detail_id="${teamToPlay.summoner}"]`, { timeout: 10000 }).then(summonerButton => summonerButton.click())
-            });
-        if (card.color(teamToPlay.cards[0]) === 'Gold') {
-            const playTeamColor = teamActualSplinterToPlay(teamToPlay.cards.slice(0, 6)) || matchDetails.splinters[0]
-            console.log('Dragon play TEAMCOLOR', playTeamColor)
-            await page.waitForXPath(`//div[@data-original-title="${playTeamColor}"]`, { timeout: 8000 })
-                .then(selector => selector.click())
+    await page.waitForSelector('.btn--create-team', { timeout: 10000 })
+        .then(e=> { e.click(); console.log('btn--create-team clicked'); })
+        .catch(()=>{
+            clicked = false;
+            console.log('Create team didnt work. Did the opponent surrender?');
+        });
+
+    return clicked
+}
+
+async function clickCards(page, teamToPlay, matchDetails) {
+    const maxRetries = 3;
+    let retriesNum = 1;
+    let allCardsClicked = false;
+
+    while (!allCardsClicked && retriesNum <= maxRetries) {
+        console.log(`Click cards iter-[${retriesNum}]`);
+        if (retriesNum > 1 && !await clickCreateTeamButton(page)) {
+            retriesNum++;
+            continue
+        }
+
+        if (!await clickSummonerCard(page, teamToPlay)) {
+            retriesNum++;
+            continue
+        }
+    
+        if (card.color(teamToPlay.cards[0]) === 'Gold' && !await clickFilterElement(page, teamToPlay, matchDetails)) {
+            retriesNum++;
+            continue
         }
         await page.waitForTimeout(5000);
-        for (i = 1; i <= 6; i++) {
-            console.log('play: ', teamToPlay.cards[i].toString())
-            await teamToPlay.cards[i] ? page.waitForXPath(`//div[@card_detail_id="${teamToPlay.cards[i].toString()}"]`, { timeout: 10000 })
-                .then(selector => selector.click()) : console.log('nocard ', i);
-            await page.waitForTimeout(1000);
+    
+        if (!await clickMembersCard(page, teamToPlay)) {
+            retriesNum++;
+            continue
+        }
+        allCardsClicked = true;   
+    }
+
+    return allCardsClicked
+}
+
+async function startBotPlayMatch(page, browser) {
+    
+    console.log( new Date().toLocaleString(), 'opening browser...')
+    try {
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3163.100 Safari/537.36');
+        await page.setViewport({
+            width: 1800,
+            height: 1500,
+            deviceScaleFactor: 1,
+        });
+
+        await page.goto('https://splinterlands.io/');
+        await page.waitForTimeout(8000);
+
+        let item = await page.waitForSelector('#log_in_button > button', {
+            visible: true,
+        })
+        .then(res => res)
+        .catch(()=> console.log('Already logged in'))
+
+        if (item != undefined)
+        {console.log('Login attempt...')
+            await splinterlandsPage.login(page, account, password).catch(e=>{
+                console.log(e);
+                throw new Error('Login Error');
+            });
+        }
+
+        await page.goto('https://splinterlands.io/?p=battle_history');
+        await page.waitForTimeout(8000);
+        await closePopups(page);
+        await closePopups(page);
+
+        const ecr = await checkEcr(page);
+        if (ecr === undefined) throw new Error('Fail to get ECR.')
+    
+        if (process.env.ECR_STOP_LIMIT && process.env.ECR_RECOVER_TO && ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
+            if (ecr < parseFloat(process.env.ECR_STOP_LIMIT)) {
+                console.log(chalk.bold.red(`ECR lower than limit ${process.env.ECR_STOP_LIMIT}%. reduce the limit in the env file config or wait until ECR will be at ${process.env.ECR_RECOVER_TO || '100'}%`));
+            } else if (ecr < parseFloat(process.env.ECR_RECOVER_TO)) {
+                console.log(chalk.bold.red(`ECR Not yet Recovered to ${process.env.ECR_RECOVER_TO}`));
+            }
+            
+            // calculating time needed for recovery
+            ecrNeededToRecover = parseFloat(process.env.ECR_RECOVER_TO) - parseFloat(ecr);
+            recoveryTimeInHours = Math.ceil(ecrNeededToRecover / ecrRecoveryRatePerHour);
+            
+            console.log(chalk.bold.white(`Time needed to recover ECR, approximately ${recoveryTimeInHours * 60} minutes.`));
+            await closeBrowser(browser);
+            console.log(chalk.bold.white(`Initiating sleep mode. The bot will awaken at ${new Date(Date.now() + recoveryTimeInHours * 3600 * 1000).toLocaleString()}`));
+            await sleep(recoveryTimeInHours * 3600 * 1000);
+    
+            throw new Error(`Restart needed.`);
+        }
+        
+        console.log('getting user quest info from splinterlands API...')
+        const quest = await getQuest();
+        if(!quest) {
+            console.log('Error for quest details. Splinterlands API didnt work or you used incorrect username, remove @ and dont use email')
+        }
+    
+        if(process.env.SKIP_QUEST && quest?.splinter && process.env.SKIP_QUEST.split(',').includes(quest?.splinter) && quest?.total !== quest?.completed) {
+            try {
+                await page.click('#quest_new_btn')
+                    .then(async a=>{
+                        await page.reload();
+                        console.log('New quest requested')})
+                    .catch(e=>console.log('Cannot click on new quest'))
+    
+            } catch(e) {
+                console.log('Error while skipping new quest')
+            }
+        }
+    
+        console.log('getting user cards collection from splinterlands API...')
+        const myCards = await getCards()
+            .then((x)=>{console.log('cards retrieved'); return x})
+            .catch(()=>console.log('cards collection api didnt respond. Did you use username? avoid email!')); 
+    
+        if(myCards) {
+            console.log(account, ' deck size: '+myCards.length)
+        } else {
+            console.log(account, ' playing only basic cards')
+        }
+    
+        //check if season reward is available
+        if (process.env.CLAIM_SEASON_REWARD === 'true') {
+            try {
+                console.log('Season reward check: ');
+                await page.waitForSelector('#claim-btn', { visible:true, timeout: 3000 })
+                .then(async (button) => {
+                    button.click();
+                    console.log(`claiming the season reward. you can check them here https://peakmonsters.com/@${account}/explorer`);
+                    await page.waitForTimeout(20000);
+                    await page.reload();
+    
+                })
+                .catch(()=>console.log(`no season reward to be claimed, but you can still check your data here https://peakmonsters.com/@${account}/explorer`));
+                await page.waitForTimeout(3000);
+                await page.reload();
+            }
+            catch (e) {
+                console.info('no season reward to be claimed')
+            }
+        }
+    
+        //if quest done claim reward. default to true. to deactivate daily quest rewards claim, set CLAIM_DAILY_QUEST_REWARD false in the env file
+        console.log('claim daily quest setting:', process.env.CLAIM_DAILY_QUEST_REWARD, 'Quest details: ', quest);
+        const isClaimDailyQuestMode = process.env.CLAIM_DAILY_QUEST_REWARD === 'false' ? false : true; 
+        if (isClaimDailyQuestMode === true) {
+            try {
+                await page.waitForSelector('#quest_claim_btn', { timeout: 5000 })
+                    .then(button => button.click());
+            } catch (e) {
+                console.info('no quest reward to be claimed waiting for the battle...')
+            }
+        }
+        await page.waitForTimeout(5000);
+
+        // LAUNCH the battle    
+        if (!await launchBattle(page)) throw new Error('The Battle cannot start');
+
+        // GET MANA, RULES, SPLINTERS, AND POSSIBLE TEAM
+        await page.waitForTimeout(10000);
+        let [mana, rules, splinters] = await Promise.all([
+            splinterlandsPage.checkMatchMana(page).then((mana) => mana).catch(() => 'no mana'),
+            splinterlandsPage.checkMatchRules(page).then((rulesArray) => rulesArray).catch(() => 'no rules'),
+            splinterlandsPage.checkMatchActiveSplinters(page).then((splinters) => splinters).catch(() => 'no splinters')
+        ]);
+
+        const matchDetails = {
+            mana: mana,
+            rules: rules,
+            splinters: splinters,
+            myCards: myCards
+        }
+        await page.waitForTimeout(2000);
+        const possibleTeams = await ask.possibleTeams(matchDetails, account).catch(e=>console.log('Error from possible team API call: ',e));
+
+        if (possibleTeams && possibleTeams.length) {
+            console.log('Possible Teams based on your cards: ', possibleTeams.length);
+        } else {
+            console.log('Error:', matchDetails, possibleTeams)
+            throw new Error('NO TEAMS available to be played');
+        }
+        
+        //TEAM SELECTION
+        const teamToPlay = await ask.teamSelection(possibleTeams, matchDetails, quest, page.favouriteDeck);
+        let startFightFail = false;
+        if (teamToPlay) {
+            await page.$eval('.btn--create-team', elem => elem.click())
+                .then(()=>console.log('btn--create-team clicked'))
+                .catch(async ()=>{
+                    console.log('Create team didnt work, waiting 5 sec and retry');
+                    await page.reload();
+                    await page.waitForTimeout(5000);
+                    await page.$eval('.btn--create-team', elem => elem.click())
+                        .then(()=>console.log('btn--create-team clicked'))
+                        .catch(()=>{
+                            startFightFail = true;
+                            console.log('Create team didnt work. Did the opponent surrender?');
+                        });
+                });
+            if (startFightFail) return
+        } else {
+            throw new Error('Team Selection error');
         }
 
         await page.waitForTimeout(5000);
-        try {
-            await page.click('.btn-green')[0]; //start fight
-        } catch {
-            console.log('Start Fight didnt work, waiting 5 sec and retry');
-            await page.waitForTimeout(5000);
-            await page.click('.btn-green')[0]; //start fight
-        }
+    
+        // Click cards based on teamToPlay value.
+        if (!await clickCards(page, teamToPlay, matchDetails)) return
+
+        // start fight
+        await page.waitForTimeout(5000);
+        await page.waitForSelector('.btn-green', { timeout: 1000 }).then(()=>console.log('btn-green visible')).catch(()=>console.log('btn-green not visible'));
+        await page.$eval('.btn-green', elem => elem.click())
+            .then(()=>console.log('btn-green clicked'))
+            .catch(async ()=>{
+                console.log('Start Fight didnt work, waiting 5 sec and retry');
+                await page.waitForTimeout(5000);
+                await page.$eval('.btn-green', elem => elem.click())
+                    .then(()=>console.log('btn-green clicked'))
+                    .catch(()=>{
+                        startFightFail = true;
+                        console.log('Start Fight didnt work. Did the opponent surrender?');
+                    });
+            });
+        if (startFightFail) return
+
         await page.waitForTimeout(5000);
         await page.waitForSelector('#btnRumble', { timeout: 90000 }).then(()=>console.log('btnRumble visible')).catch(()=>console.log('btnRumble not visible'));
         await page.waitForTimeout(5000);
@@ -298,33 +433,31 @@ async function startBotPlayMatch(page, browser) {
         await page.waitForSelector('#btnSkip', { timeout: 10000 }).then(()=>console.log('btnSkip visible')).catch(()=>console.log('btnSkip not visible'));
         await page.$eval('#btnSkip', elem => elem.click()).then(()=>console.log('btnSkip clicked')).catch(()=>console.log('btnSkip not visible')); //skip rumble
         await page.waitForTimeout(5000);
-        try {
-			const winner = await getElementText(page, 'section.player.winner .bio__name__display', 15000);
-			if (winner.trim() == account) {
-				const decWon = await getElementText(page, '.player.winner span.dec-reward span', 1000);
-				console.log(chalk.green('You won! Reward: ' + decWon + ' DEC'));
-                totalDec += !isNaN(parseFloat(decWon)) ? parseFloat(decWon) : 0 ;
-                winTotal += 1;
-			}
-			else {
-                console.log(chalk.red('You lost'));
-                loseTotal += 1;
-			}
-		} catch {
-			console.log('Could not find winner - draw?');
-            undefinedTotal += 1;
-		}
-		await clickOnElement(page, '.btn--done', 20000, 10000);
-		await clickOnElement(page, '#menu_item_battle', 20000, 10000);
+            try {
+                const winner = await getElementText(page, 'section.player.winner .bio__name__display', 15000);
+                if (winner.trim() == account) {
+                    const decWon = await getElementText(page, '.player.winner span.dec-reward span', 1000);
+                    console.log(chalk.green('You won! Reward: ' + decWon + ' DEC'));
+                    totalDec += !isNaN(parseFloat(decWon)) ? parseFloat(decWon) : 0 ;
+                    winTotal += 1;
+                }
+                else {
+                    console.log(chalk.red('You lost'));
+                    loseTotal += 1;
+                }
+            } catch {
+                console.log('Could not find winner - draw?');
+                undefinedTotal += 1;
+            }
+            await clickOnElement(page, '.btn--done', 20000, 10000);
+            await clickOnElement(page, '#menu_item_battle', 20000, 10000);
 
-        console.log('Total Battles: ' + (winTotal + loseTotal + undefinedTotal) + chalk.green(' - Win Total: ' + winTotal) + chalk.yellow(' - Draw? Total: ' + undefinedTotal) + chalk.red(' - Lost Total: ' + loseTotal));
-        console.log(chalk.green('Total Earned: ' + totalDec + ' DEC'));
-        
+            console.log('Total Battles: ' + (winTotal + loseTotal + undefinedTotal) + chalk.green(' - Win Total: ' + winTotal) + chalk.yellow(' - Draw? Total: ' + undefinedTotal) + chalk.red(' - Lost Total: ' + loseTotal));
+            console.log(chalk.green('Total Earned: ' + totalDec + ' DEC'));
+            
     } catch (e) {
-        throw new Error(e);
+            console.log('Error handling browser not opened, internet connection issues, or battle cannot start:', e)
     }
-
-
 }
 
 // 30 MINUTES INTERVAL BETWEEN EACH MATCH (if not specified in the .env file)
@@ -332,6 +465,32 @@ async function startBotPlayMatch(page, browser) {
 const sleepingTimeInMinutes = process.env.MINUTES_BATTLES_INTERVAL || 30;
 const sleepingTime = sleepingTimeInMinutes * 60000;
 const isHeadlessMode = process.env.HEADLESS === 'false' ? false : true; 
+const executablePath = process.env.CHROME_EXEC || null;
+let puppeteer_options = {
+    headless: isHeadlessMode, // default is true
+    args: ['--no-sandbox',
+    '--disable-setuid-sandbox',
+    //'--disable-dev-shm-usage',
+    //'--disable-accelerated-2d-canvas',
+    // '--disable-canvas-aa', 
+    // '--disable-2d-canvas-clip-aa', 
+    //'--disable-gl-drawing-for-tests', 
+    // '--no-first-run',
+    // '--no-zygote', 
+    '--disable-dev-shm-usage', 
+    // '--use-gl=swiftshader', 
+    // '--single-process', // <- this one doesn't works in Windows
+    // '--disable-gpu',
+    // '--enable-webgl',
+    // '--hide-scrollbars',
+    '--mute-audio',
+    // '--disable-infobars',
+    // '--disable-breakpad',
+    '--disable-web-security']
+}
+if (executablePath) {
+    puppeteer_options['executablePath'] = executablePath;
+}
 
 
 const blockedResources = [
@@ -347,29 +506,9 @@ const blockedResources = [
 
 async function run() {
     let start = true
+
     console.log('START ', account, new Date().toLocaleString())
-    const browser = await puppeteer.launch({
-        headless: isHeadlessMode, // default is true
-        args: ['--no-sandbox',
-        '--disable-setuid-sandbox',
-        //'--disable-dev-shm-usage',
-        //'--disable-accelerated-2d-canvas',
-        // '--disable-canvas-aa', 
-        // '--disable-2d-canvas-clip-aa', 
-        //'--disable-gl-drawing-for-tests', 
-        // '--no-first-run',
-        // '--no-zygote', 
-        '--disable-dev-shm-usage', 
-        // '--use-gl=swiftshader', 
-        // '--single-process', // <- this one doesn't works in Windows
-        // '--disable-gpu',
-        // '--enable-webgl',
-        // '--hide-scrollbars',
-        '--mute-audio',
-        // '--disable-infobars',
-        // '--disable-breakpad',
-        '--disable-web-security']
-    });
+    const browser = await puppeteer.launch(puppeteer_options);
     
     //const page = await browser.newPage();
     let [page] = await browser.pages();
