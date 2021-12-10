@@ -62,9 +62,9 @@ async function checkIfNeedToUpdateSheet(page){
     }
 }
 
-async function startBotPlayMatch(page, browser) {
+// async function startBotPlayMatch(page, browser) {
     
-    console.log( new Date().toLocaleString(), 'opening browser...')
+//     console.log( new Date().toLocaleString(), 'opening browser...')
 async function findSeekingEnemyModal(page, visibleTimeout=5000) {
     let findOpponentDialogStatus = 0;
     /*  findOpponentDialogStatus value list

@@ -12,7 +12,7 @@ async function startMulti() {
     let missingValue = false;
     let accounts = process.env.ACCOUNT.split(',');
     let passwords = process.env.PASSWORD.split(',');
-    let gs_spots = process.env.SHEET_SPOT.splint(',');
+    let gs_spots = process.env.SHEET_SPOT.split(',');
     let count = 1;
 
     // trim account and password
